@@ -2,44 +2,60 @@ import serial
 import serial.tools.list_ports
 from time import sleep
 
+#Deteccao da porta serial referente a impressora
 com = ""
-
 ports = list(serial.tools.list_ports.comports())
 for p in ports:
-    #print(p[0],p[1])
     if("USB Serial" in p[1]):
         com  = p[0]
 
-#com = "/dev/ttyUSB0" 
-
-#print(com)
-
+#Configuracao da conexao serial
 ser = serial.Serial()
 ser.baudrate = 115200
 ser.port = com
 ser.open()
 
+#Inicializacao da comunicacao
 ser.write(b'\r\n\r\n')
 sleep(2)
+#Limpeza do buffer
 ser.flushInput()
 
-lista = ['G0 X50\n', 'G0 Y50\n', 'G0 X0\n', 'G0 Y0\n']
+#Entrada do arquivo a ser impresso
+arquivo = input("Digite o nome do arquivo: ")
 
-ser.write(bytes(lista[2], 'utf-8'))
+#Abertura do arquivo para impressao
+arq = open(arquivo)
+comandos = arq.readlines()
+arq.close()
 
+#flags e variaveis para controle da impressao
 leitura = 'ok'
+fim = False
+nLines = len(comandos)
+countComandos = 0
 
-for i in range(5):
-    for i in lista:
-        #leitura = ser.readlines()
-        #print(leitura)
+#loop de impressao
+while(not fim):
+    #Condicao de descarte de linhas desnecessarias para a maquina
+    if((comandos[countComandos][0] == ';') or (len(comandos[countComandos])<3)):
+        countComandos += 1
 
-        if ('ok' in leitura):
-            ser.write(bytes(i, 'utf-8'))
-            print(leitura)
+    else:
+        #Condicao de onde acontece o envio do G-code
+        if('ok' in leitura):
+            ser.write(bytes(comandos[countComandos], 'utf-8'))
+            print(comandos[countComandos])
+            countComandos += 1
+            leitura = ''
 
+        #Exibicao da resposta da maquina
         leitura = str(ser.readline())
-        #print(leitura)
+        print(leitura)
 
+    #Eventro de finalizacao do processo
+    if(countComandos == nLines):
+        fim = True
 
+#Fechamento da conexao
 ser.close()
